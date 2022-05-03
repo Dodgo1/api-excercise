@@ -5,12 +5,12 @@ import pymongo
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-username = "test1"
-password = "zaq1%40WSX"
+username = "username"
+password = "password"
 cluster_address = "cluster0"
 # connection
 client = pymongo.MongoClient(
-    f"mongodb+srv://{username}:{password}@cluster0.fmeh0.mongodb.net/{cluster_address}?retryWrites=true&w=majority")
+    f"mongodb+srv://{username}:{password}@{cluster_address}.fmeh0.mongodb.net/{cluster_address}?retryWrites=true&w=majority")
 db = client["api_db"]
 collection = db['db']
 
