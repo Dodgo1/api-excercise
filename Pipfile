@@ -8,6 +8,7 @@ pymongo = "*"
 dnspython = "*"
 fastapi = "*"
 uvicorn = "*"
+python-dotenv = "*"
 
 [dev-packages]
 pylint = "*"

@@ -1,13 +1,18 @@
 from email.headerregistry import Address
 import time
+import os
 from typing import Optional
 import pymongo
 from fastapi import FastAPI
 from pydantic import BaseModel
+from dotenv import load_dotenv
 
-username = "username"
-password = "password"
-cluster_address = "cluster0"
+load_dotenv()
+
+username = os.environ("USERNAME")
+password = os.environ("PASSWORD")
+cluster_address = os.environ("CLUSTER_ADDRESS")
+
 # connection
 client = pymongo.MongoClient(
     f"mongodb+srv://{username}:{password}@{cluster_address}.fmeh0.mongodb.net/{cluster_address}?retryWrites=true&w=majority")
