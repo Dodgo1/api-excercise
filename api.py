@@ -1,5 +1,6 @@
 import time
 import secrets
+import hashlib
 import os
 from typing import Optional
 import pymongo
@@ -74,18 +75,37 @@ class User(BaseModel):
 
 
 # test using curl -u username:passwd /// browser remembers credentials
-# has pass and store in db
 def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     # read users from db_users
-    correct_username = secrets.compare_digest(credentials.username, "test1")
-    correct_password = secrets.compare_digest(credentials.password, "pass1")
-    if not (correct_username and correct_password):
+
+    # compare to single user defined in function
+
+    # user = collection_users.find_one({"user": credentials.username})
+    # correct_username = secrets.compare_digest(credentials.username, "test1")
+    # correct_password = secrets.compare_digest(credentials.password, "pass1")
+    # if not (correct_username and correct_password):
+    #     raise HTTPException(
+    #         status_code=status.HTTP_401_UNAUTHORIZED,
+    #         detail="Incorrect email or password",
+    #         headers={"WWW-Authenticate": "Basic"},
+    #     )
+    # return credentials.username
+
+    # get document
+    user_document = collection_users.find_one({"username": credentials.username})
+    # get hashed passwd and hash one used to log into
+    hashed_password = hashlib.md5(credentials.password.encode()).hexdigest()
+    db_hashed_password = user_document["password"]
+    #   compare to db in mongodb
+    comparison = secrets.compare_digest(hashed_password, db_hashed_password)
+    if not (comparison):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Basic"},
         )
     return credentials.username
+
 
 
 @app.get("/", tags=["root"])
@@ -100,9 +120,11 @@ def read_current_user(username: str = Depends(get_current_username)):
     return {"username": username}
 
 
-@app.post("/posts/users",tags=["users"])
+@app.post("/posts/user",tags=["users"])
 def create_user(user: User):
-    #insert users
+    #hash password
+    user.password = hashlib.md5(user.password.encode()).hexdigest()
+    #insert user into db
     collection_users.insert_one(user.__dict__)
     return {"Status": "Success"}
 
