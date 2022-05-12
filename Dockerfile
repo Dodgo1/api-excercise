@@ -10,5 +10,7 @@ RUN pip install pipenv
 
 RUN pipenv install --system --deploy --ignore-pipfile
 
+CMD ["uvicorn", "api:app"]
+
 
 

@@ -76,6 +76,7 @@ class User(BaseModel):
 # test using curl -u username:passwd /// browser remembers credentials
 # has pass and store in db
 def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+    # read users from db_users
     correct_username = secrets.compare_digest(credentials.username, "test1")
     correct_password = secrets.compare_digest(credentials.password, "pass1")
     if not (correct_username and correct_password):
@@ -101,6 +102,7 @@ def read_current_user(username: str = Depends(get_current_username)):
 
 @app.post("/posts/users",tags=["users"])
 def create_user(user: User):
+    #insert users
     collection_users.insert_one(user.__dict__)
     return {"Status": "Success"}
 
