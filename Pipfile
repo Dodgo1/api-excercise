@@ -4,8 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pymongo = "*"
-dnspython = "*"
+pymongo = {extras = ["srv"], version = "*"}
 fastapi = "*"
 uvicorn = "*"
 python-dotenv = "*"

@@ -11,9 +11,9 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
 description = """
-Przykładowe api, korzystające z mongodb
+Api-exercise which uses MongoDB as database
 
-***Dane potrzebne do połączenia się należy uzupełnić w pliku <i>.env</i>***
+***Fill out credentials/information using .env.example - Create a .env***
 """
 
 tags_metadata = [
@@ -23,11 +23,11 @@ tags_metadata = [
     },
     {
         "name": "users",
-        "description": "user management"
+        "description": "User management"
     },
     {
         "name": "items",
-        "description": "items management"
+        "description": "Items management"
     }
 
 ]
@@ -40,7 +40,8 @@ cluster_address = os.getenv("CLUSTER_ADDRESS")
 
 # connection
 client = pymongo.MongoClient(
-    f"mongodb+srv://{username}:{password}@{cluster_address}.fmeh0.mongodb.net/{cluster_address}?retryWrites=true&w=majority")
+    f"mongodb+srv://{username}:{password}@{cluster_address}.fmeh0.mongodb.net/{cluster_address}?retryWrites=true&w"
+    f"=majority")
 db = client["api_db"]
 collection = db['db']
 collection_users = db["db_users"]
@@ -61,6 +62,10 @@ security = HTTPBasic()
 
 
 class Item(BaseModel):
+    """
+    Model of a class for creating items in db
+    index: number generated either by mongoDB or automatically
+    """
     index: int
     message: str
 
@@ -75,12 +80,12 @@ class User(BaseModel):
 
 
 # test using curl -u username:passwd /// browser remembers credentials
-def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+def verify(credentials: HTTPBasicCredentials = Depends(security)):
     """
+    Fucntion for Basic HTTP authetication
 
-
-    :param credentials:
-    :return:
+    :param credentials: credentials from HTTPBasicCredentials
+    :return: username if verified, else HTTP.Unauthorized
     """
     # read users from db_users
 
@@ -91,7 +96,7 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
     db_hashed_password = user_document["password"]
     #   compare to db in mongodb
     comparison = secrets.compare_digest(hashed_password, db_hashed_password)
-    if not (comparison):
+    if not comparison:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -101,18 +106,18 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
 
 
 @app.get("/", tags=["root"])
-async def root(_: str = Depends(get_current_username)):
+async def root(_: str = Depends(verify)):
     # shows all of data
     all_data = list(collection.find({}))
     return all_data
 
 
-@app.get("/gets/user", tags=["users"])
-def read_current_user(username: str = Depends(get_current_username)):
+@app.get("/user", tags=["users"])
+def read_current_user(username: str = Depends(verify)):
     return {"username": username}
 
 
-@app.post("/posts/user", tags=["users"])
+@app.post("/user", tags=["users"])
 def create_user(user: User):
     # hash password
     user.password = hashlib.md5(user.password.encode()).hexdigest()
@@ -121,7 +126,7 @@ def create_user(user: User):
     return {"Status": "Success"}
 
 
-@app.post("/posts/item", tags=["items"])
+@app.post("/item", tags=["items"])
 def create_item(item: Item):
     # extra info about new message plus _id
     item_dict = item.__dict__
@@ -144,14 +149,14 @@ def create_item(item: Item):
 
 
 # delete
-@app.delete("/deletes/itemIndex/{index}", tags=["items"])
+@app.delete("/item/{index}", tags=["items"])
 def delete_item(index: int):
     collection.delete_one({"_id": index})
     return {"Status": "Success"}
 
 
 # get by id
-@app.get("/gets/itemIndex/{index}", tags=["items"])
+@app.get("/item/{index}", tags=["items"])
 def get_item(index: int):
     data = collection.find({"_id": index})
     dic = {}
@@ -164,7 +169,7 @@ def get_item(index: int):
 
 
 # get by message
-@app.get("/gets/itemMessage/{message}", tags=["items"])
+@app.get("/item/{message}", tags=["items"])
 def get_item(message: str):
     data = collection.find({"message": message})
     dic = {}
@@ -176,7 +181,7 @@ def get_item(message: str):
         return {"Status": "0 results found"}
 
 
-@app.put("/puts/itemId/{item_id}", tags=["items"])
+@app.put("/item/{item_id}", tags=["items"])
 def update_item(item_id: int, item: UpdateItem):
     match = collection.find_one({"_id": item_id})
     if not match:
