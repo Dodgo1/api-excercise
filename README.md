@@ -1,12 +1,11 @@
-#  api-excercise
-
-
+# api-excercise
 
 Przykładowe api, korzystające z mongodb
 
 ***Dane potrzebne do połączenia się należy uzupełnić w pliku *.env****
 
 Posiada 8 prostych endpointów:
+
 - get/user
 - post/user
 - post/item
@@ -26,7 +25,8 @@ zainstalować wszystkie zależności projektu
 
 **Uruchamianie**
 
-*Przed rozpoczeciem uruchamiania uzupełniamy dane do połączenia się z MongoDB w pliku .env*
+*Przed rozpoczeciem uruchamiania uzupełniamy dane do połączenia się z MongoDB w pliku .env który można utworzyć na
+podstawie .env.example*
 
 <code>pipenv install</code> - instalujemy wszystkie moduły
 

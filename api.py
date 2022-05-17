@@ -50,7 +50,7 @@ collection_users = db["db_users"]
 app = FastAPI(
     openapi_tags=tags_metadata,
     description=description,
-    title="api-excercise",
+    title="api-exercise",
     version="1.0.1",
     contact={
         "name": "Adam Jaskierski",
@@ -71,10 +71,16 @@ class Item(BaseModel):
 
 
 class UpdateItem(BaseModel):
+    """
+    Model of a class for updating existing record in db
+    """
     message: Optional[str] = None
 
 
 class User(BaseModel):
+    """
+    Model of a class for creating new users
+    """
     username: str
     password: str
 
@@ -82,10 +88,10 @@ class User(BaseModel):
 # test using curl -u username:passwd /// browser remembers credentials
 def verify(credentials: HTTPBasicCredentials = Depends(security)):
     """
-    Fucntion for Basic HTTP authetication
+    Function for Basic HTTP authentication
 
-    :param credentials: credentials from HTTPBasicCredentials
-    :return: username if verified, else HTTP.Unauthorized
+    param credentials: credentials from HTTPBasicCredentials
+    :return: username if verified, else HTTP.Unauthorized - 401
     """
     # read users from db_users
 
@@ -107,6 +113,12 @@ def verify(credentials: HTTPBasicCredentials = Depends(security)):
 
 @app.get("/", tags=["root"])
 async def root(_: str = Depends(verify)):
+    """
+
+    :param _: Depends on function verify() which confirms that username
+    matches one already created and that password is valid
+    :return: all records in DB
+    """
     # shows all of data
     all_data = list(collection.find({}))
     return all_data
@@ -114,11 +126,22 @@ async def root(_: str = Depends(verify)):
 
 @app.get("/user", tags=["users"])
 def read_current_user(username: str = Depends(verify)):
+    """
+
+    :param username: Depends on function verify() which confirms that username
+    matches one already created and that password is valid
+    :return: if authentication successful, returns username - else HTTP_UNAUTHORIZED_401
+    """
     return {"username": username}
 
 
 @app.post("/user", tags=["users"])
 def create_user(user: User):
+    """
+
+    :param user: Model for creating new users in DB
+    :return: Status - else error
+    """
     # hash password
     user.password = hashlib.md5(user.password.encode()).hexdigest()
     # insert user into db
@@ -126,22 +149,25 @@ def create_user(user: User):
     return {"Status": "Success"}
 
 
-@app.post("/item", tags=["items"])
+@app.post("/item", tags=["items"], response_model=Item)
 def create_item(item: Item):
+    """
+
+    :param item: Model for creating new items in DB
+    :return: Status and index of the item
+    """
     # extra info about new message plus _id
     item_dict = item.__dict__
     # %c = Locale’s appropriate date and time representation.
     item_dict["time"] = time.strftime("%c", time.localtime())
 
-    # change index to _id for mongo db, how to change auto index?, name _id causes problem with fast api i think?
+    # change index to _id for mongo db
     item_dict["_id"] = item_dict.pop("index")
 
     # auto "increment" mechanism
     while collection.find_one({"_id": item_dict["_id"]}):
-        if collection.find_one({"_id": item_dict["_id"]}):
-            item_dict["_id"] += 1
-            continue
-        else:
+        item_dict["_id"] += 1
+        if not collection.find_one({"_id": item_dict["_id"]}):
             return {f'Status":"Success - index has been changed to {item_dict["_id"]}'}
 
     collection.insert_one(item_dict)
@@ -151,6 +177,11 @@ def create_item(item: Item):
 # delete
 @app.delete("/item/{index}", tags=["items"])
 def delete_item(index: int):
+    """
+
+    :param index: index of the item
+    :return: Status
+    """
     collection.delete_one({"_id": index})
     return {"Status": "Success"}
 
@@ -158,38 +189,52 @@ def delete_item(index: int):
 # get by id
 @app.get("/item/{index}", tags=["items"])
 def get_item(index: int):
+    """
+
+    :param index: index of the item
+    :return: item or 'no match' status
+    """
     data = collection.find({"_id": index})
     dic = {}
-    for n, i in enumerate(data):
-        dic[n] = i
+    for index, data in enumerate(data):
+        dic[index] = data
     if dic:
         return dic
-    else:
-        return {"Status": "0 results found"}
+    return {"Status": "0 results found"}
 
 
 # get by message
 @app.get("/item/{message}", tags=["items"])
 def get_item(message: str):
+    """
+
+    :param message: message which is included inside the item
+    :return: item or  'no match' status
+    """
     data = collection.find({"message": message})
     dic = {}
-    for n, i in enumerate(data):
-        dic[n] = i
+    for index, data in enumerate(data):
+        dic[index] = data
+
     if dic:
         return dic
-    else:
-        return {"Status": "0 results found"}
+    return {"Status": "0 results found"}
 
 
 @app.put("/item/{item_id}", tags=["items"])
 def update_item(item_id: int, item: UpdateItem):
+    """
+
+    :param item_id: index of an item
+    :param item: model of the user
+    :return: status and new item or 'no match' status
+    """
     match = collection.find_one({"_id": item_id})
     if not match:
         return {"Status": "No match"}
 
     if item.message is not None:
         # replace
-        print(match)
         item = item.__dict__
         item["_id"] = match["_id"]
         item["time"] = time.strftime("%c", time.localtime())
