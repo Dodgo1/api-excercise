@@ -75,8 +75,15 @@ class ItemOut(BaseModel):
     Model of a class for showing user when the item has been created,
     it helps to filter out vulnerable information
     """
-    message: str
     time: str
+    message: str
+
+
+class ItemsOut(BaseModel):
+    """
+    Model for multiple Items for the user
+    """
+    items: list[ItemOut] | None
 
 
 class UpdateItem(BaseModel):
@@ -84,6 +91,13 @@ class UpdateItem(BaseModel):
     Model of a class for updating existing record in db
     """
     message: Optional[str] = None
+
+
+class DeleteItem(BaseModel):
+    """
+    Model for delete response
+    """
+    result: bool
 
 
 class UserIn(BaseModel):
@@ -134,7 +148,7 @@ def verify(credentials: HTTPBasicCredentials = Depends(security)):
     return user_document
 
 
-@app.get("/", tags=["root"], status_code=status.HTTP_200_OK)
+@app.get("/", tags=["root"], status_code=status.HTTP_200_OK, response_model=ItemOut)
 async def root(_=Depends(verify)):
     """
 
@@ -143,13 +157,14 @@ async def root(_=Depends(verify)):
     :return: all records in DB
     """
     # shows all of data
-    all_data = list(collection.find({}))
-    return all_data
+    all_data = collection.find()
+    return {"items": list(all_data)}
 
 
 @app.get("/user", tags=["users"], response_model=UserOut, status_code=status.HTTP_200_OK)
 def read_current_user(user=Depends(verify)):
     """
+    throws unauthorized error if wrong credentials
 
     :param user : Depends on function verify() which confirms that username
     matches one already created and that password is valid
@@ -162,6 +177,7 @@ def read_current_user(user=Depends(verify)):
 @app.post("/user", tags=["users"], response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserIn):
     """
+    Creates a user
 
     :param user: Model for creating new users in DB
     :return: Status - else error
@@ -179,6 +195,7 @@ def create_user(user: UserIn):
 @app.post("/item", tags=["items"], response_model=ItemOut, status_code=status.HTTP_201_CREATED)
 def create_item(item: ItemIn):
     """
+    Creates an item
 
     :param item: Model for creating new items in DB
     :return: Status and index of the item
@@ -194,27 +211,30 @@ def create_item(item: ItemIn):
     # auto "increment" mechanism
     while collection.find_one({"_id": item_dict["_id"]}):
         item_dict["_id"] += 1
-        if not collection.find_one({"_id": item_dict["_id"]}):
-            return item
 
     collection.insert_one(item_dict)
     return item
 
 
 # delete
-@app.delete("/item/{index}", tags=["items"], status_code=status.HTTP_200_OK)
-def delete_item(index: int):
+@app.delete("/item/{index}", tags=["items"], status_code=status.HTTP_200_OK, response_model=DeleteItem)
+def delete_item(index: int, response: Response):
     """
 
     :param index: index of the item
+    :param response: used to indicate status code
     :return: Status
     """
-    collection.delete_one({"_id": index})
-    return {"Status": "Success"}
+    result = collection.delete_one({"_id": index})
+    if not result.acknowledged:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {}
+    response.status_code = status.HTTP_200_OK
+    return {"result": result.acknowledged}
 
 
 # get by id
-@app.get("/item/{index}", tags=["items"], status_code=status.HTTP_200_OK)
+@app.get("/item/index/{index}", tags=["items"], status_code=status.HTTP_200_OK, response_model=ItemsOut)
 def get_item(index: int, response: Response):
     """
 
@@ -222,39 +242,32 @@ def get_item(index: int, response: Response):
     :param response: used for indicating HTTP code
     :return: item or 'no match' status
     """
-    data = collection.find({"_id": index})
-    dic = {}
-    for index, data in enumerate(data):
-        dic[index] = data
-    if dic:
-        response.status_code = status.HTTP_302_FOUND
-        return dic
-    response.status_code = status.HTTP_204_NO_CONTENT
-    return {"Status": "0 results found"}
+    data = list(collection.find({"_id": index}))
+    if data:
+        response.status_code = status.HTTP_200_OK
+        return {"items": data}
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return {}
 
 
 # get by message
-@app.get("/item/{message}", tags=["items"], status_code=status.HTTP_200_OK)
+@app.get("/item/message/{message}", tags=["items"], status_code=status.HTTP_200_OK, response_model=ItemsOut)
 def get_item(message: str, response: Response):
     """
 
     :param message: message which is included inside the item
     :param response: used for indicating HTTP code
-    :return: item or  'no match' status
+    :return: item or  'not found' status
     """
-    data = collection.find({"message": message})
-    dic = {}
-    for index, data in enumerate(data):
-        dic[index] = data
-
-    if dic:
-        response.status_code = status.HTTP_302_FOUND
-        return dic
+    data = list(collection.find({"message": message}))
+    if data:
+        response.status_code = status.HTTP_200_OK
+        return {"items": data}
     response.status_code = status.HTTP_404_NOT_FOUND
-    return {"Status": "0 results found"}
+    return {}
 
 
-@app.put("/item/{item_id}", tags=["items"], response_model=ItemOut, status_code=status.HTTP_200_OK)
+@app.put("/item/{item_id}", tags=["items"], status_code=status.HTTP_200_OK, response_model=ItemOut)
 def update_item(item_id: int, item: UpdateItem, response: Response):
     """
 

@@ -36,5 +36,8 @@ Gotowe, teraz api działa na socketcie 127.0.0.1:8000
 
 Można go używać przy pomocy *curl* lub przeglądarki
 
+Dokumentacja wygenerowana przez FastApi: *127.0.0.1/redoc*
+
 <a href="https://www.python.org" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="python" width="40" height="40"/> </a>
+
 
