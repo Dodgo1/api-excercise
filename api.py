@@ -61,9 +61,9 @@ app = FastAPI(
 security = HTTPBasic()
 
 
-class Item(BaseModel):
+class ItemIn(BaseModel):
     """
-    Model of a class for creating items in db
+    Model of a class for creating items in db, when adding time of creation is also saved
     index: number generated either by mongoDB or automatically
     """
     index: int
@@ -77,12 +77,20 @@ class UpdateItem(BaseModel):
     message: Optional[str] = None
 
 
-class User(BaseModel):
+class UserIn(BaseModel):
     """
     Model of a class for creating new users
     """
     username: str
     password: str
+
+
+class UserOut(BaseModel):
+    """
+    Model of a class for users without a password
+    """
+    username: str
+    time: str
 
 
 # test using curl -u username:passwd /// browser remembers credentials
@@ -96,7 +104,13 @@ def verify(credentials: HTTPBasicCredentials = Depends(security)):
     # read users from db_users
 
     # get document
-    user_document = collection_users.find_one({"username": credentials.username})
+    user_document = collection_users.find_one({"username": credentials.username}, {'_id': 0})
+    if not user_document:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
     # get hashed passwd and hash one used to log into
     hashed_password = hashlib.md5(credentials.password.encode()).hexdigest()
     db_hashed_password = user_document["password"]
@@ -108,11 +122,11 @@ def verify(credentials: HTTPBasicCredentials = Depends(security)):
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Basic"},
         )
-    return credentials.username
+    return user_document
 
 
 @app.get("/", tags=["root"])
-async def root(_: str = Depends(verify)):
+async def root(_=Depends(verify)):
     """
 
     :param _: Depends on function verify() which confirms that username
@@ -124,19 +138,20 @@ async def root(_: str = Depends(verify)):
     return all_data
 
 
-@app.get("/user", tags=["users"])
-def read_current_user(username: str = Depends(verify)):
+@app.get("/user", tags=["users"], response_model=UserOut)
+def read_current_user(user=Depends(verify)):
     """
 
-    :param username: Depends on function verify() which confirms that username
+    :param user : Depends on function verify() which confirms that username
     matches one already created and that password is valid
+    :param user: Class of users in DB
     :return: if authentication successful, returns username - else HTTP_UNAUTHORIZED_401
     """
-    return {"username": username}
+    return user
 
 
-@app.post("/user", tags=["users"])
-def create_user(user: User):
+@app.post("/user", tags=["users"], response_model=UserOut)
+def create_user(user: UserIn):
     """
 
     :param user: Model for creating new users in DB
@@ -144,13 +159,16 @@ def create_user(user: User):
     """
     # hash password
     user.password = hashlib.md5(user.password.encode()).hexdigest()
+    # add account creation time
+    user = user.__dict__
+    user["time"] = time.strftime("%c", time.localtime())
     # insert user into db
-    collection_users.insert_one(user.__dict__)
-    return {"Status": "Success"}
+    collection_users.insert_one(user)
+    return user
 
 
-@app.post("/item", tags=["items"], response_model=Item)
-def create_item(item: Item):
+@app.post("/item", tags=["items"], response_model=ItemIn)
+def create_item(item: ItemIn):
     """
 
     :param item: Model for creating new items in DB
