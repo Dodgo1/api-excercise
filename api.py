@@ -6,7 +6,7 @@ from typing import Optional
 
 import pymongo
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
@@ -70,6 +70,15 @@ class ItemIn(BaseModel):
     message: str
 
 
+class ItemOut(BaseModel):
+    """
+    Model of a class for showing user when the item has been created,
+    it helps to filter out vulnerable information
+    """
+    message: str
+    time: str
+
+
 class UpdateItem(BaseModel):
     """
     Model of a class for updating existing record in db
@@ -87,7 +96,7 @@ class UserIn(BaseModel):
 
 class UserOut(BaseModel):
     """
-    Model of a class for users without a password
+    Model of a class for showing users that the account has been created
     """
     username: str
     time: str
@@ -125,7 +134,7 @@ def verify(credentials: HTTPBasicCredentials = Depends(security)):
     return user_document
 
 
-@app.get("/", tags=["root"])
+@app.get("/", tags=["root"], status_code=status.HTTP_200_OK)
 async def root(_=Depends(verify)):
     """
 
@@ -138,7 +147,7 @@ async def root(_=Depends(verify)):
     return all_data
 
 
-@app.get("/user", tags=["users"], response_model=UserOut)
+@app.get("/user", tags=["users"], response_model=UserOut, status_code=status.HTTP_200_OK)
 def read_current_user(user=Depends(verify)):
     """
 
@@ -150,7 +159,7 @@ def read_current_user(user=Depends(verify)):
     return user
 
 
-@app.post("/user", tags=["users"], response_model=UserOut)
+@app.post("/user", tags=["users"], response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserIn):
     """
 
@@ -167,7 +176,7 @@ def create_user(user: UserIn):
     return user
 
 
-@app.post("/item", tags=["items"], response_model=ItemIn)
+@app.post("/item", tags=["items"], response_model=ItemOut, status_code=status.HTTP_201_CREATED)
 def create_item(item: ItemIn):
     """
 
@@ -186,14 +195,14 @@ def create_item(item: ItemIn):
     while collection.find_one({"_id": item_dict["_id"]}):
         item_dict["_id"] += 1
         if not collection.find_one({"_id": item_dict["_id"]}):
-            return {f'Status":"Success - index has been changed to {item_dict["_id"]}'}
+            return item
 
     collection.insert_one(item_dict)
-    return {"Status": "Success"}
+    return item
 
 
 # delete
-@app.delete("/item/{index}", tags=["items"])
+@app.delete("/item/{index}", tags=["items"], status_code=status.HTTP_200_OK)
 def delete_item(index: int):
     """
 
@@ -205,11 +214,12 @@ def delete_item(index: int):
 
 
 # get by id
-@app.get("/item/{index}", tags=["items"])
-def get_item(index: int):
+@app.get("/item/{index}", tags=["items"], status_code=status.HTTP_200_OK)
+def get_item(index: int, response: Response):
     """
 
     :param index: index of the item
+    :param response: used for indicating HTTP code
     :return: item or 'no match' status
     """
     data = collection.find({"_id": index})
@@ -217,16 +227,19 @@ def get_item(index: int):
     for index, data in enumerate(data):
         dic[index] = data
     if dic:
+        response.status_code = status.HTTP_302_FOUND
         return dic
+    response.status_code = status.HTTP_204_NO_CONTENT
     return {"Status": "0 results found"}
 
 
 # get by message
-@app.get("/item/{message}", tags=["items"])
-def get_item(message: str):
+@app.get("/item/{message}", tags=["items"], status_code=status.HTTP_200_OK)
+def get_item(message: str, response: Response):
     """
 
     :param message: message which is included inside the item
+    :param response: used for indicating HTTP code
     :return: item or  'no match' status
     """
     data = collection.find({"message": message})
@@ -235,20 +248,24 @@ def get_item(message: str):
         dic[index] = data
 
     if dic:
+        response.status_code = status.HTTP_302_FOUND
         return dic
+    response.status_code = status.HTTP_404_NOT_FOUND
     return {"Status": "0 results found"}
 
 
-@app.put("/item/{item_id}", tags=["items"])
-def update_item(item_id: int, item: UpdateItem):
+@app.put("/item/{item_id}", tags=["items"], response_model=ItemOut, status_code=status.HTTP_200_OK)
+def update_item(item_id: int, item: UpdateItem, response: Response):
     """
 
-    :param item_id: index of an item
+    :param item_id: index of an item from the client
     :param item: model of the user
+    :param response: used for indicating HTTP code
     :return: status and new item or 'no match' status
     """
     match = collection.find_one({"_id": item_id})
     if not match:
+        response.status_code = status.HTTP_404_NOT_FOUND
         return {"Status": "No match"}
 
     if item.message is not None:
@@ -258,4 +275,5 @@ def update_item(item_id: int, item: UpdateItem):
         item["time"] = time.strftime("%c", time.localtime())
 
         collection.replace_one({"_id": item_id}, item)
-        return {"Status": "Done", "result": item}
+        response.status_code = status.HTTP_200_OK
+        return item
