@@ -34,9 +34,9 @@ tags_metadata = [
 
 load_dotenv()
 
-username = os.getenv("USERNAME_MONGODB")
-password = os.getenv("PASSWORD")
-cluster_address = os.getenv("CLUSTER_ADDRESS")
+username = os.getenv("USERNAME_MONGODB", "user not provided")
+password = os.getenv("PASSWORD", "password not provided")
+cluster_address = os.getenv("CLUSTER_ADDRESS", "cluster address not provided")
 
 # connection
 client = pymongo.MongoClient(

@@ -14,7 +14,9 @@ Posiada 8 prostych endpointów:
 - get/itemMessage *(przy użyciu zawratości)*
 - put/itemID
 
-**pipenv**
+## pipenv
+
+### Zależności
 
 Za pomocą Pipfile/Pipfile.lock i PipEnv z łatwością można
 zainstalować wszystkie zależności projektu
@@ -23,7 +25,7 @@ zainstalować wszystkie zależności projektu
 
 <code>pip install pipenv</code> - Instalacja *pipenv* za pomocą *pip*
 
-**Uruchamianie**
+### Uruchamianie
 
 *Przed rozpoczeciem uruchamiania uzupełniamy dane do połączenia się z MongoDB w pliku .env który można utworzyć na
 podstawie .env.example*
@@ -37,6 +39,10 @@ Gotowe, teraz api działa na socketcie 127.0.0.1:8000
 Można go używać przy pomocy *curl* lub przeglądarki
 
 Dokumentacja wygenerowana przez FastApi: *127.0.0.1/redoc*
+
+## Docker
+
+Przed tworzeniem obrazu należy stworzyc plik .env na podstawie .env.example
 
 <a href="https://www.python.org" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="python" width="40" height="40"/> </a>
 
